@@ -14,7 +14,7 @@ pipeline {
 		NEXUSIP = '172.31.58.144'
 		NEXUSPORT = '8081'
 		NEXUS_GRP_REPO = 'vpro-maven-group'
-        NEXUS_LOGIN = 'nexuslogin'
+        NEXUS_LOGIN = 'nexus-server'
         SONARSERVER = 'sonarserver'
         SONARSCANNER = 'sonarscanner'
     }
@@ -82,7 +82,7 @@ pipeline {
                   groupId: 'QA',
                   version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
                   repository: "${RELEASE_REPO}",
-                  credentialsId: "${nexus-server}",
+                  credentialsId: "${NEXUS_LOGIN}",
                   artifacts: [
                     [artifactId: 'vproapp',
                      classifier: '',
