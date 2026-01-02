@@ -3,16 +3,16 @@ pipeline {
 
     tools {
         maven "Maven3.9"
-        jdk "JDK17"
+        jdk "JDK21"
     }
 
     environment {
 		SNAP_REPO = 'vprofile-snapshot'
         RELEASE_REPO = 'vprofile-release'
         NEXUS_USER = 'admin'
-		NEXUS_PASS = 'Mca@bca123'
+		NEXUS_PASS = 'Admin@123'
 		CENTRAL_REPO = 'vprofile-maven-central'
-		NEXUSIP = '172.31.5.98'
+		NEXUSIP = '172.31.5.13'
 		NEXUSPORT = '8081'
 		NEXUS_GRP_REPO = 'vprofile-maven-group'
         NEXUS_LOGIN = 'nexus-server'
