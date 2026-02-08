@@ -1,48 +1,79 @@
-TOMURL="https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.37/bin/apache-tomcat-8.5.37.tar.gz"
-yum install java-1.8.0-openjdk -y
-yum install git maven wget -y
-cd /tmp/
-wget $TOMURL -O tomcatbin.tar.gz
-EXTOUT=`tar xzvf tomcatbin.tar.gz`
-TOMDIR=`echo $EXTOUT | cut -d '/' -f1`
-useradd --shell /sbin/nologin tomcat
-rsync -avzh /tmp/$TOMDIR/ /usr/local/tomcat8/
-chown -R tomcat.tomcat /usr/local/tomcat8
+#!/bin/bash
+set -e
 
-rm -rf /etc/systemd/system/tomcat.service
+### VARIABLES
+TOMCAT_VERSION="8.5.37"
+TOMCAT_URL="https://archive.apache.org/dist/tomcat/tomcat-8/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz"
+INSTALL_DIR="/usr/local/tomcat8"
+REPO_URL="https://github.com/thakurrajesh22293/vprofile-project.git"
+REPO_BRANCH="aws-LiftAndShift"
+REPO_DIR="/tmp/vprofile-project"
 
-cat <<EOT>> /etc/systemd/system/tomcat.service
+echo "===== Updating system ====="
+sudo apt update -y
+
+echo "===== Installing required packages ====="
+sudo apt install -y openjdk-8-jdk git maven wget rsync
+
+echo "===== Verifying Java & Maven ====="
+java -version
+mvn -version
+
+echo "===== Downloading Tomcat ====="
+cd /tmp
+rm -rf apache-tomcat*
+wget ${TOMCAT_URL} -O tomcat.tar.gz
+tar -xzf tomcat.tar.gz
+
+echo "===== Creating Tomcat user ====="
+sudo useradd -r -m -U -d ${INSTALL_DIR} -s /usr/sbin/nologin tomcat || true
+
+echo "===== Installing Tomcat ====="
+sudo mkdir -p ${INSTALL_DIR}
+sudo rsync -av apache-tomcat-${TOMCAT_VERSION}/ ${INSTALL_DIR}/
+sudo chown -R tomcat:tomcat ${INSTALL_DIR}
+
+echo "===== Creating Tomcat systemd service ====="
+sudo tee /etc/systemd/system/tomcat.service > /dev/null <<EOF
 [Unit]
-Description=Tomcat
+Description=Apache Tomcat
 After=network.target
 
 [Service]
+Type=forking
 User=tomcat
-WorkingDirectory=/usr/local/tomcat8
-Environment=JRE_HOME=/usr/lib/jvm/jre
-Environment=JAVA_HOME=/usr/lib/jvm/jre
-Environment=CATALINA_HOME=/usr/local/tomcat8
-Environment=CATALINE_BASE=/usr/local/tomcat8
-ExecStart=/usr/local/tomcat8/bin/catalina.sh run
-ExecStop=/usr/local/tomcat8/bin/shutdown.sh
-SyslogIdentifier=tomcat-%i
+Group=tomcat
+Environment=JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+Environment=CATALINA_HOME=${INSTALL_DIR}
+Environment=CATALINA_BASE=${INSTALL_DIR}
+ExecStart=${INSTALL_DIR}/bin/startup.sh
+ExecStop=${INSTALL_DIR}/bin/shutdown.sh
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
-EOT
+EOF
 
-systemctl daemon-reload
-systemctl start tomcat
-systemctl enable tomcat
+echo "===== Starting Tomcat ====="
+sudo systemctl daemon-reload
+sudo systemctl enable tomcat
+sudo systemctl restart tomcat
 
-git clone -b vp-rem https://github.com/devopshydclub/vprofile-repo.git
-cd vprofile-repo
-mvn install
-systemctl stop tomcat
-sleep 120
-rm -rf /usr/local/tomcat8/webapps/ROOT*
-cp target/vprofile-v2.war /usr/local/tomcat8/webapps/ROOT.war
-systemctl start tomcat
-sleep 300
-cp /vprofile-vm-data/application.properties /usr/local/tomcat8/webapps/ROOT/WEB-INF/classes/application.properties
-systemctl restart tomcat8
+echo "===== Cloning application repository ====="
+cd /tmp
+rm -rf ${REPO_DIR}
+git clone -b ${REPO_BRANCH} ${REPO_URL}
+cd ${REPO_DIR}
+
+echo "===== Building application with Maven ====="
+mvn clean install
+
+echo "===== Deploying application to Tomcat ====="
+sudo systemctl stop tomcat
+sudo rm -rf ${INSTALL_DIR}/webapps/ROOT*
+sudo cp target/*.war ${INSTALL_DIR}/webapps/ROOT.war
+sudo chown tomcat:tomcat ${INSTALL_DIR}/webapps/ROOT.war
+sudo systemctl start tomcat
+
+echo "===== Deployment completed successfully ====="
+echo "Access application at: http://<EC2-PUBLIC-IP>:8080"
