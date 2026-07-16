@@ -1,35 +1,48 @@
 #!/bin/bash
 
-DATABASE_PASS='admin123'
+set -e
 
-# Update system
-sudo dnf update -y
+DATABASE_PASS="admin123"
 
-# Install required packages
-sudo dnf install -y git zip unzip mariadb105-server
+echo "Updating system..."
+sudo apt update
+sudo apt upgrade -y
 
-# Start & enable MariaDB
-sudo systemctl start mariadb
+echo "Installing required packages..."
+sudo apt install -y git zip unzip mariadb-server
+
+echo "Starting MariaDB..."
 sudo systemctl enable mariadb
+sudo systemctl start mariadb
 
-# Clone project
-cd /tmp
-git clone -b aws-LiftAndShift https://github.com/hkhcoder/vprofile-project.git
+echo "Removing old project if it exists..."
+rm -rf /tmp/vprofile-project
 
-# Secure MariaDB & setup DB
-sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${DATABASE_PASS}';"
-sudo mysql -uroot -p"${DATABASE_PASS}" -e "DELETE FROM mysql.user WHERE User='';"
-sudo mysql -uroot -p"${DATABASE_PASS}" -e "DROP DATABASE IF EXISTS test;"
-sudo mysql -uroot -p"${DATABASE_PASS}" -e "FLUSH PRIVILEGES;"
+echo "Cloning repository..."
+git clone https://github.com/hkhcoder/vprofile-project.git /tmp/vprofile-project
 
-# Create database & user
-sudo mysql -uroot -p"${DATABASE_PASS}" -e "CREATE DATABASE accounts;"
-sudo mysql -uroot -p"${DATABASE_PASS}" -e "CREATE USER 'admin'@'%' IDENTIFIED BY 'admin123';"
-sudo mysql -uroot -p"${DATABASE_PASS}" -e "GRANT ALL PRIVILEGES ON accounts.* TO 'admin'@'%';"
-sudo mysql -uroot -p"${DATABASE_PASS}" -e "FLUSH PRIVILEGES;"
+echo "Creating database and user..."
 
-# Restore database
-sudo mysql -uroot -p"${DATABASE_PASS}" accounts < /tmp/vprofile-project/src/main/resources/db_backup.sql
+sudo mysql <<EOF
+DROP DATABASE IF EXISTS accounts;
+CREATE DATABASE accounts;
 
-# Restart MariaDB
+DROP USER IF EXISTS 'admin'@'%';
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin123';
+GRANT ALL PRIVILEGES ON accounts.* TO 'admin'@'%';
+FLUSH PRIVILEGES;
+EOF
+
+echo "Importing database..."
+
+sudo mysql accounts < /tmp/vprofile-project/src/main/resources/db_backup.sql
+
+echo "Restarting MariaDB..."
 sudo systemctl restart mariadb
+
+echo "====================================="
+echo "Installation completed successfully!"
+echo "====================================="
+echo "Database : accounts"
+echo "Username : admin"
+echo "Password : admin123"
