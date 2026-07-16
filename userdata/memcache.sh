@@ -1,13 +1,26 @@
 #!/bin/bash
-sudo dnf install epel-release -y
-sudo dnf install memcached -y
-sudo systemctl start memcached
+
+set -e
+
+echo "Updating packages..."
+sudo apt update
+
+echo "Installing Memcached..."
+sudo apt install -y memcached libmemcached-tools
+
+echo "Configuring Memcached..."
+
+sudo sed -i 's/^-l .*/-l 0.0.0.0/' /etc/memcached.conf
+
 sudo systemctl enable memcached
-sudo systemctl status memcached
-sed -i 's/127.0.0.1/0.0.0.0/g' /etc/sysconfig/memcached
 sudo systemctl restart memcached
-firewall-cmd --add-port=11211/tcp
-firewall-cmd --runtime-to-permanent
-firewall-cmd --add-port=11111/udp
-firewall-cmd --runtime-to-permanent
-sudo memcached -p 11211 -U 11111 -u memcached -d
+
+echo "Opening firewall..."
+
+sudo ufw allow 11211/tcp
+
+echo "Checking service status..."
+
+sudo systemctl status memcached --no-pager
+
+echo "Done!"
