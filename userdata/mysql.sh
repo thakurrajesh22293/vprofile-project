@@ -14,7 +14,7 @@ sudo systemctl enable mariadb
 
 # Clone project
 cd /tmp
-git clone -b main https://github.com/hkhcoder/vprofile-project.git
+git clone -b aws-LiftAndShift https://github.com/hkhcoder/vprofile-project.git
 
 # Secure MariaDB & setup DB
 sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${DATABASE_PASS}';"
